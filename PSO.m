@@ -1,26 +1,27 @@
-
 clc;
 clear;
 close all;
 
 %% Problem Definition
+
 global NFE;
 model=CreateModelFirst();
 
 CostFunction=@(z) ObjectiveFunction(z,model); % Cost Function
 
-nVar=4;                           % Number of Decision Variables
-VarSize=[1 nVar];                 % Size of Decision Variables Matrix
 
-VarMin=[0 0.4 2.5 0];          % Lower Bound of Variables
-VarMax=[1 2 4.5 1];         % Upper Bound of Variables
+nVar=6;                          % Number of Decision Variables
+VarSize=[1 nVar];                % Size of Decision Variables Matrix
+
+VarMin=[0 0.4 2.5 0 .01 .001];              % Lower Bound of Variables
+VarMax=[1 2 4.5 1 1 1];                   % Upper Bound of Variables
 
 
 %% PSO Parameters
 
-MaxIt=20;         % Maximum Number of Iterations
+MaxIt=1;         % Maximum Number of Iterations
 
-nPop=1;           % Population Size (Swarm Size)
+nPop=20;           % Population Size (Swarm Size)
 
 % w=1; 
 % % Inertia Weight
@@ -68,6 +69,8 @@ for i=1:nPop
     particle(i).PositionInt(2)=particle(i).Position(2);
     particle(i).PositionInt(3)=particle(i).Position(3);
     particle(i).PositionInt(4)=min(floor(39+31*particle(i).Position(4)+1),70);
+    particle(i).PositionInt(5)=particle(i).Position(5);
+    particle(i).PositionInt(6)=particle(i).Position(6);
     % Initialize Velocity
     particle(i).Velocity=zeros(VarSize);
     
@@ -95,7 +98,7 @@ nfe=zeros(MaxIt,1);
 
 
 %% PSO Main Loop
-
+ETTC=zeros(1,MaxIt);
 for it=1:MaxIt
     
     for i=1:nPop
@@ -125,6 +128,8 @@ for it=1:MaxIt
        particle(i).PositionInt(2)=particle(i).Position(2);
        particle(i).PositionInt(3)=particle(i).Position(3);
        particle(i).PositionInt(4)=min(floor(39+31*particle(i).Position(4)+1),70);
+       particle(i).PositionInt(5)=particle(i).Position(5);
+       particle(i).PositionInt(6)=particle(i).Position(6);
         % Evaluation
         [particle(i).Cost, particle(i).sol]=CostFunction(particle(i).PositionInt);
         
@@ -150,6 +155,7 @@ for it=1:MaxIt
     
     BestCost(it)=GlobalBest.Cost;
     
+    ETTC(it)=GlobalBest.Cost;
     nfe(it)=NFE;
     disp(['iter=  ' num2str(it) ': NFE = ' num2str(nfe(it)) ',ETC=  ' num2str(GlobalBest.Cost)])
     disp(GlobalBest.PositionInt)
@@ -158,6 +164,46 @@ for it=1:MaxIt
     
 end
 
+%% Results
+itter=1:MaxIt;
+ plot(itter,ETTC,'r');
+%  figure;
+% plot(BestCost);
+% % semilogy(nfe,GlobalBest.Cost,'LineWidth',2);
+% xlabel('Iteration');
+% ylabel('GlobalBest.Cost');
 
+% n=20;
+% L=1:4;
+% s=7;
+% delta=0.25;
+% % deltaV= 0.09;
+% % delta=deltaB:deltaV:deltaB+(s-1)*deltaV;
 
-
+% lambda=0.0016;
+% % lambda=[0.0008 0.0004 0.0002 0.0001 0.00005 0.000025 0.0000125]; %scale parameter for assignable cause
+% % lambda0=sum(lambda);
+%     alfa= 2*normcdf(-L);
+% 
+% %%%middle parameters that depend on the type of assignable cause
+% %     beta=zeros(1,s);
+% 
+%     beta=normcdf(L-delta*sqrt(n))-normcdf(-L-delta*sqrt(n));
+% 
+% 
+% %%ARL
+%     ARL0= 1./alfa;
+%     ARL1=1./(1-beta);
+% lower=200;
+% upper=5;
+% % L=1:4;
+% y=ARL0/lower;
+% % y>1;
+% yp=ARL1/upper;
+% % yp<1;
+% plot(L,y,'r');
+% hold on;
+% plot(L,yp,'b');
+% 
+% 
+% 

@@ -6,13 +6,14 @@ function[ETC,sol]=ObjectiveFunction(z,model)
     if isempty(NFE)
         NFE=0;
     end
-    
     NFE=NFE+1;
 %%%decision variables assignment
-n=z(1);    %%%Sample size
-h=z(2);    %%%the sampling intervals
-L=z(3);    %%%control chart limit
-K=z(4);    %%% The number of samplings of monitoring period
+n=z(1);           %%%Sample size
+h=z(2);           %%%the sampling intervals
+% L=z(3);           %%%control chart limit
+K=z(4);           %%% The number of samplings of monitoring period
+% thetarma=z(5);    %%%  The autoregressive parameter of ARMA control chart
+% phi=z(6);         %%% The  moving average parameter  of the ARMA control chart
 
 
 %%% Parameters assignment
@@ -34,7 +35,6 @@ K=z(4);    %%% The number of samplings of monitoring period
     D=model.D;
     s=model.s;
     lambda=model.lambda;
-    delta=model.delta;
     lambda0=model.lambda0;
     landa1=model.landa1;
     landa2=model.landa2;
@@ -56,17 +56,20 @@ K=z(4);    %%% The number of samplings of monitoring period
     Fbar0=@(x)   exp(-lambda0.*x.^nu);
 
 %%%middle parameters that depends on desision variables
-    alfa= 2*normcdf(-L);
+%     alfa= 2*normcdf(-L);
 
 %%%middle parameters that depend on the type of assignable cause
-    beta=zeros(1,s);
-for j=1:s
-    beta(j)=normcdf(L-delta(j)*sqrt(n))-normcdf(-L-delta(j)*sqrt(n));
-end
+%     beta=zeros(1,s);
+% for j=1:s
+%     beta(j)=normcdf(L-delta(j)*sqrt(n))-normcdf(-L-delta(j)*sqrt(n));
+% end
 
-%%%ARL
-    ARL0= 1/alfa;
-    ARL1= sum(lambda.*(1./(1-beta)))/lambda0;
+% %%%ARL
+%     ARL0= 1/alfa;
+%     ARL1= sum(lambda.*(1./(1-beta)))/lambda0;
+% [ARL0,ARL1j]=SimulateArmaProcesswhile(z,model);
+[ARL0,ARL1j]=SimulateArmaRandom(z,model);
+ARL1= (sum(lambda.*ARL1j)/lambda0);
 
 %% Time to failure variable in in-control state
     g0=@(x)       gamma0.*(theta0.*x.^(theta0-1)).*exp(-gamma0.*x.^theta0);
@@ -174,11 +177,11 @@ end
  for j=1:s
     Gbar1j=@(t)   exp(-gamma1(j).*t.^theta1);
     g1j=@(y)      gamma1(j).*(theta1.*y.^(theta1-1)).*exp(-gamma1(j).*y.^theta1);
-    mult3(j)=integral2(@(t,y) Gbar0(t).*f0(t).*(beta(j).^ceil((y-t)/h)).*g1j(y)./Gbar1j(t),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
+    mult3(j)=integral2(@(t,y) Gbar0(t).*f0(t).*((1-(1./ARL1j(j))).^ceil((y-t)/h)).*g1j(y)./Gbar1j(t),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
     PS(3)=PS(3)+(lambda(j).*mult3(j))./lambda0;
 
-    ETijS3(j)=integral2(@(t,y) t.*Gbar0(t).*f0(t).*(beta(j).^ceil((y-t)/h)).*g1j(y)./(Gbar1j(t).*mult3(j)),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
-    ETojS3(j)=integral2(@(y,t) y.*Gbar0(t).*g1j(y).*(beta(j).^ceil((y-t)/h)).*f0(t)./(Gbar1j(t).*mult3(j)),0,T,0,@(y) y,'AbsTol',1e-10,'RelTol',1e-1)-ETijS3(j);
+    ETijS3(j)=integral2(@(t,y) t.*Gbar0(t).*f0(t).*((1-(1./ARL1j(j))).^ceil((y-t)/h)).*g1j(y)./(Gbar1j(t).*mult3(j)),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
+    ETojS3(j)=integral2(@(y,t) y.*Gbar0(t).*g1j(y).*((1-(1./ARL1j(j))).^ceil((y-t)/h)).*f0(t)./(Gbar1j(t).*mult3(j)),0,T,0,@(y) y,'AbsTol',1e-10,'RelTol',1e-1)-ETijS3(j);
 
     Nout(j)=1-(normcdf((USL-mu1(j))./sigma)-normcdf((LSL-mu1(j))./sigma));
     ENoS3(j)=Nout(j).*ETojS3(j);
@@ -236,7 +239,6 @@ end
     mult7=zeros(1,s);
     mult8=zeros(1,s);
     ETiS4=zeros(1,s);
-    ARL1j=zeros(1,s);
     EToS4=zeros(1,s);
     Nout=zeros(1,s);
     ENoS4=zeros(1,s);
@@ -244,15 +246,14 @@ end
     for j=1:s 
     g1j=@(y)     gamma1(j).*(theta1.*y.^(theta1-1)).*exp(-gamma1(j).*y.^theta1);
     Gbar1j=@(t)  exp(-gamma1(j).*t.^theta1);
-    mult4(j)=integral2(@(t,y) Gbar0(t).*f0(t).*g1j(y).*(1-beta(j).^ceil((y-t)./h))./Gbar1j(t),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
-    mult5(j)=integral(@(t) Gbar0(t).*f0(t).*(1-beta(j).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./Gbar1j(t),0,T);
+    mult4(j)=integral2(@(t,y) Gbar0(t).*f0(t).*g1j(y).*((1./ARL1j(j)).^ceil((y-t)./h))./Gbar1j(t),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
+    mult5(j)=integral(@(t) Gbar0(t).*f0(t).*((1./ARL1j(j)).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./Gbar1j(t),0,T);
     mult6(j)=(mult4(j)+mult5(j));
     PS(4)=PS(4)+(lambda(j).*mult6(j))./lambda0;
 
-    mult7(j)=integral2(@(t,y) t.*Gbar0(t).*f0(t).*g1j(y).*(1-beta(j).^ceil((y-t)./h))./(Gbar1j(t).*mult6(j)),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
-    mult8(j)=integral(@(t) t.*Gbar0(t).*f0(t).*(1-beta(j).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./(Gbar1j(t).*mult6(j)),0,T);
+    mult7(j)=integral2(@(t,y) t.*Gbar0(t).*f0(t).*g1j(y).*((1./ARL1j(j)).^ceil((y-t)./h))./(Gbar1j(t).*mult6(j)),0,T,@(t) t,T,'AbsTol',1e-10,'RelTol',1e-1);
+    mult8(j)=integral(@(t) t.*Gbar0(t).*f0(t).*((1./ARL1j(j)).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./(Gbar1j(t).*mult6(j)),0,T);
     ETiS4(j)=mult7(j)+mult8(j);
-    ARL1j(j)=1./(1-beta(j));
     EToS4(j)=h.*ARL1j(j);
     
     Nout(j)=1-(normcdf((USL-mu1(j))./sigma)-normcdf((LSL-mu1(j))./sigma));
@@ -313,10 +314,10 @@ end
 for j=1:s
     g1j=@(y)  gamma1(j).*(theta1.*y.^(theta1-1)).*exp(-gamma1(j).*y.^theta1);
     Gbar1j=@(t)     exp(-gamma1(j).*t.^theta1);
-    mult9(j)=integral(@(t) Gbar0(t).*f0(t).*(beta(j).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./Gbar1j(t),0,T);
+    mult9(j)=integral(@(t) Gbar0(t).*f0(t).*((1-(1./ARL1j(j))).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./Gbar1j(t),0,T);
     PS(5)=PS(5)+(lambda(j).*mult9(j))./lambda0;
 
-    ETin5(j)=integral(@(t) t.*Gbar0(t).*f0(t).*(beta(j).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./(Gbar1j(t).*mult9(j)),0,T);
+    ETin5(j)=integral(@(t) t.*Gbar0(t).*f0(t).*((1-(1./ARL1j(j))).^ceil((T-t)./h)).*integral(@(y) g1j(y),T,inf)./(Gbar1j(t).*mult9(j)),0,T);
     EToS5(j)=T-ETin5(j);
     
     Nout(j)=1-(normcdf((USL-mu1(j))./sigma)-normcdf((LSL-mu1(j))./sigma));
@@ -383,7 +384,6 @@ sol.PS=PS;
 sol.ETPS=ETPS;
 sol.ETinS=ETinS;
 sol.EToutS=EToutS;
-sol.beta=beta;
 sol.ETC=ETC;
 sol.EICS=EICS;
 sol.EMS=EMS;
